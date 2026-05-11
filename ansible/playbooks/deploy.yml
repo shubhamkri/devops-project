@@ -1,0 +1,97 @@
+---
+- name: Setup and deploy DevOps Demo app
+  hosts: app_servers
+  become: true
+  vars:
+    app_dir: /home/ubuntu/devops-project
+    github_repo: "https://github.com/{{ lookup('env','GITHUB_REPO') }}.git"
+
+  tasks:
+    # ── System Setup ─────────────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - docker-compose-plugin
+          - git
+          - curl
+          - ufw
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    # ── Firewall ─────────────────────────────────────────────
+    - name: Configure UFW — allow SSH
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+
+    - name: Configure UFW — allow HTTP
+      ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+
+    # ── App Deployment ────────────────────────────────────────
+    - name: Clone or update repo
+      git:
+        repo: "{{ github_repo }}"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+      become_user: ubuntu
+
+    - name: Set correct ownership
+      file:
+        path: "{{ app_dir }}"
+        owner: ubuntu
+        group: ubuntu
+        recurse: yes
+
+    - name: Pull latest Docker images
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        pull: always
+      become_user: ubuntu
+
+    - name: Start all services
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+      become_user: ubuntu
+
+    # ── Health Check ─────────────────────────────────────────
+    - name: Wait for app to be healthy
+      uri:
+        url: http://localhost/health
+        method: GET
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 10
+      delay: 5
+
+    - name: Print deployment result
+      debug:
+        msg: "✅ App deployed successfully — {{ result.json }}"

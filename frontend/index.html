@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DevOps Demo Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    header { background: #1e293b; border-bottom: 1px solid #334155; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.2rem; font-weight: 600; color: #f1f5f9; }
+    .version { font-size: 0.75rem; background: #0ea5e9; color: white; padding: 2px 8px; border-radius: 999px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.25rem; }
+    .card label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 0.25rem; }
+    .card .sub { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; }
+    .healthy { color: #4ade80; }
+    .unhealthy { color: #f87171; }
+    .degraded { color: #fbbf24; }
+    .section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .section h2 { font-size: 0.9rem; font-weight: 600; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .status-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid #0f172a; }
+    .status-row:last-child { border: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.healthy { background: #4ade80; }
+    .dot.unhealthy { background: #f87171; }
+    .item-table { width: 100%; border-collapse: collapse; }
+    .item-table th { text-align: left; font-size: 0.75rem; color: #64748b; padding: 0.5rem 0; border-bottom: 1px solid #334155; }
+    .item-table td { padding: 0.6rem 0; border-bottom: 1px solid #0f172a; font-size: 0.875rem; }
+    .badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; }
+    .badge.active { background: #064e3b; color: #4ade80; }
+    .badge.inactive { background: #450a0a; color: #f87171; }
+    .btn { background: #0ea5e9; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.875rem; }
+    .btn:hover { background: #0284c7; }
+    .loading { color: #64748b; font-size: 0.875rem; }
+    footer { text-align: center; padding: 2rem; color: #334155; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DevOps Demo Dashboard</h1>
+    <span class="version">v1.0.0</span>
+  </header>
+  <main>
+    <div class="grid" id="metrics-grid">
+      <div class="card"><label>API Status</label><div class="value loading" id="api-status">...</div></div>
+      <div class="card"><label>Redis</label><div class="value loading" id="redis-status">...</div></div>
+      <div class="card"><label>Database</label><div class="value loading" id="db-status">...</div></div>
+      <div class="card"><label>Total Items</label><div class="value" id="items-count">—</div><div class="sub">from API</div></div>
+    </div>
+
+    <div class="section">
+      <h2>Service Health</h2>
+      <div id="health-rows"><p class="loading">Loading...</p></div>
+    </div>
+
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2 style="margin:0">Items</h2>
+        <button class="btn" onclick="loadItems()">Refresh</button>
+      </div>
+      <table class="item-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Status</th></tr></thead>
+        <tbody id="items-body"><tr><td colspan="3" class="loading">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+  <footer>Built with FastAPI · Docker · GitHub Actions · AWS · Terraform · Prometheus</footer>
+
+  <script>
+    const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
+
+    async function loadHealth() {
+      try {
+        const res = await fetch(`${API}/health`);
+        const data = await res.json();
+        const checks = data.checks;
+        document.getElementById('api-status').textContent = checks.api === 'healthy' ? '✓' : '✗';
+        document.getElementById('api-status').className = `value ${checks.api}`;
+        document.getElementById('redis-status').textContent = checks.redis === 'healthy' ? '✓' : '✗';
+        document.getElementById('redis-status').className = `value ${checks.redis}`;
+        document.getElementById('db-status').textContent = checks.database === 'healthy' ? '✓' : '✗';
+        document.getElementById('db-status').className = `value ${checks.database}`;
+
+        const rows = Object.entries(checks).map(([k, v]) =>
+          `<div class="status-row"><div class="dot ${v}"></div><span style="flex:1;text-transform:capitalize">${k}</span><span class="${v}" style="font-size:0.8rem">${v}</span></div>`
+        ).join('');
+        document.getElementById('health-rows').innerHTML = rows;
+      } catch(e) {
+        document.getElementById('health-rows').innerHTML = '<p class="unhealthy">Could not reach API</p>';
+      }
+    }
+
+    async function loadItems() {
+      try {
+        const res = await fetch(`${API}/items`);
+        const data = await res.json();
+        document.getElementById('items-count').textContent = data.items.length;
+        document.getElementById('items-body').innerHTML = data.items.map(item =>
+          `<tr><td>${item.id}</td><td>${item.name}</td><td><span class="badge ${item.status}">${item.status}</span></td></tr>`
+        ).join('');
+      } catch(e) {
+        document.getElementById('items-body').innerHTML = '<tr><td colspan="3" class="unhealthy">API unreachable</td></tr>';
+      }
+    }
+
+    loadHealth();
+    loadItems();
+    setInterval(loadHealth, 30000);
+  </script>
+</body>
+</html>
