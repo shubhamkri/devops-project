@@ -1,7 +1,7 @@
-FROM nginx:1.27-alpine AS production
+FROM nginx:1.27-alpine
 
-COPY index.html /usr/share/nginx/html/index.html
-COPY ../nginx/nginx.conf /etc/nginx/nginx.conf
+COPY frontend/index.html /usr/share/nginx/html/index.html
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80
 
