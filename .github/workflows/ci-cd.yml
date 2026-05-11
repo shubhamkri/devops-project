@@ -54,8 +54,8 @@ jobs:
         env:
           REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgresql://user:password@localhost:5432/appdb
+          PYTHONPATH: .
         run: pytest tests/ -v --tb=short
-
   # ─────────────────────────────────────────
   # JOB 2: Build & Push Docker Image
   # ─────────────────────────────────────────
