@@ -66,7 +66,7 @@ Push → GitHub Actions
 
 ## Infrastructure Setup (AWS)
 
-```bash
+```bash shuisbkchbsakuhcahocjioadhckdgbcoiuhasekcnasfc
 cd terraform
 
 # 1. Configure your variables
