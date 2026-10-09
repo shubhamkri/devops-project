@@ -94,4 +94,4 @@
 
     - name: Print deployment result
       debug:
-        msg: "✅ App deployed successfully — {{ result.json }}"
+        msg: " App deployed successfully — {{ result.json }}"
